@@ -1,23 +1,274 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-type="software" data-radius="soft" data-buttons="solid" data-motion="quiet">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cover Snap</title>
-<link rel="stylesheet" href="./style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2eee6">
+  <meta name="page-type" content="software">
+  <meta name="site-kind" content="software">
+  <meta name="description" content="Turn your photos into a custom Vice City-inspired game cover, right in your browser.">
+  <title>VicePrint — Game Cover Studio</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<main class="app">
-  <section class="controls">
-    <h1>Cover Snap</h1>
-    <p>A photo and a caption, made into a square cover.</p>
-    <label>Photo <input id="photo" type="file" accept="image/*"></label>
-    <label>Caption <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
-    <button id="export" type="button">Export PNG 1080 x 1080</button>
-    <p id="status" role="status"></p>
-  </section>
-  <canvas id="cover" width="1080" height="1080" aria-label="The cover"></canvas>
-</main>
-<script type="module" src="./src/main.js"></script>
+  <a class="skip-link" href="#editor">Skip to cover editor</a>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="VicePrint home">
+        <span class="brand-mark" aria-hidden="true"><i>V</i><i>I</i></span>
+        <span class="brand-copy"><strong>VicePrint</strong><small>Cover studio</small></span>
+      </a>
+
+      <div class="project-name" aria-label="Current project">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Untitled cover</span>
+        <small>On this device</small>
+      </div>
+
+      <div class="top-actions">
+        <label class="export-format" for="export-format">
+          <span>PNG size</span>
+          <select id="export-format">
+            <option value="portrait">Portrait · 1080 × 1350</option>
+            <option value="square">Square · 1080 × 1080</option>
+            <option value="landscape">Landscape · 1920 × 1080</option>
+          </select>
+        </label>
+        <button class="button button-ghost reset-button" id="reset" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4v6h6M5.1 15A8 8 0 1 0 7 6.3L4 10"/></svg>
+          <span>Reset</span>
+        </button>
+        <button class="button button-primary" id="export" type="button" disabled>
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14"/></svg>
+          <span>Export cover</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace" id="editor">
+      <nav class="toolrail" aria-label="Editor tools">
+        <button class="tool-button is-active" type="button" data-tool="photos" aria-pressed="true">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 17 5-4 4 3 3-2 4 3"/></svg>
+          <span>Photos</span>
+        </button>
+        <button class="tool-button" type="button" data-tool="style" aria-pressed="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3Z"/><path d="m18.5 15 .9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1Z"/></svg>
+          <span>Style</span>
+        </button>
+        <button class="tool-button" type="button" data-tool="type" aria-pressed="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M8 19h8"/></svg>
+          <span>Title</span>
+        </button>
+        <button class="tool-button" type="button" data-tool="layout" aria-pressed="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="8" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="15" width="7" height="6" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/></svg>
+          <span>Layout</span>
+        </button>
+      </nav>
+
+      <aside class="inspector" aria-label="Cover controls">
+        <section class="control-panel is-active" data-panel="photos">
+          <div class="panel-heading">
+            <span class="eyebrow">01 / Source</span>
+            <h1>Your photos.<br>Their big break.</h1>
+            <p>Drop in up to twelve shots, then pick a cover panel to frame each scene.</p>
+          </div>
+
+          <label class="dropzone" id="dropzone" for="photo">
+            <input id="photo" type="file" accept="image/*" multiple>
+            <span class="drop-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 16V5m0 0L8 9m4-4 4 4M5 19h14"/></svg>
+            </span>
+            <span><strong>Add your photos</strong><small>JPG, PNG or WEBP</small></span>
+            <span class="drop-plus" aria-hidden="true">+</span>
+          </label>
+
+          <div class="source-header">
+            <span>Photo roll</span>
+            <small id="photo-count">2 photos</small>
+          </div>
+          <div class="photo-grid" id="photo-grid" aria-label="Available photos"></div>
+
+          <div class="crop-controls">
+            <div class="section-title">
+              <span>Panel <strong id="panel-number">01</strong></span>
+              <small>Drag directly on cover</small>
+            </div>
+            <div class="panel-picker" id="panel-picker" aria-label="Choose a cover panel"></div>
+            <label class="range-row" for="zoom">
+              <span>Zoom</span>
+              <input id="zoom" type="range" min="100" max="220" value="112">
+              <output id="zoom-value" for="zoom">112%</output>
+            </label>
+            <div class="nudge-row" aria-label="Nudge selected photo">
+              <span>Position</span>
+              <div class="nudge-buttons">
+                <button type="button" data-nudge="left" aria-label="Move photo left">←</button>
+                <button type="button" data-nudge="up" aria-label="Move photo up">↑</button>
+                <button type="button" data-nudge="down" aria-label="Move photo down">↓</button>
+                <button type="button" data-nudge="right" aria-label="Move photo right">→</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-panel" data-panel="style" hidden>
+          <div class="panel-heading">
+            <span class="eyebrow">02 / Art direction</span>
+            <h2>Pick the mood.</h2>
+            <p>Grade the whole cover, then dial in its print texture, film grain and vignette.</p>
+          </div>
+
+          <div class="preset-list" role="radiogroup" aria-label="Art style">
+            <button class="preset-card is-active" type="button" data-preset="vice" role="radio" aria-checked="true">
+              <span class="preset-swatch preset-vice" aria-hidden="true"></span>
+              <span><strong>Vice glow</strong><small>Pink heat · golden skin</small></span>
+              <i aria-hidden="true">✓</i>
+            </button>
+            <button class="preset-card" type="button" data-preset="sunset" role="radio" aria-checked="false">
+              <span class="preset-swatch preset-sunset" aria-hidden="true"></span>
+              <span><strong>Sunset</strong><small>Warm gradient map · amber light</small></span>
+              <i aria-hidden="true">✓</i>
+            </button>
+            <button class="preset-card" type="button" data-preset="neon" role="radio" aria-checked="false">
+              <span class="preset-swatch preset-neon" aria-hidden="true"></span>
+              <span><strong>Neon</strong><small>Cyan highlights · magenta shadows</small></span>
+              <i aria-hidden="true">✓</i>
+            </button>
+            <button class="preset-card" type="button" data-preset="noir" role="radio" aria-checked="false">
+              <span class="preset-swatch preset-noir" aria-hidden="true"></span>
+              <span><strong>Night shift</strong><small>Hard ink · electric cyan</small></span>
+              <i aria-hidden="true">✓</i>
+            </button>
+          </div>
+
+          <div class="style-controls">
+            <label class="range-row" for="intensity">
+              <span>Intensity</span>
+              <input id="intensity" type="range" min="0" max="100" value="72">
+              <output id="intensity-value" for="intensity">72%</output>
+            </label>
+            <label class="range-row" for="texture">
+              <span>Print texture</span>
+              <input id="texture" type="range" min="0" max="100" value="38">
+              <output id="texture-value" for="texture">38%</output>
+            </label>
+            <label class="range-row" for="grain">
+              <span>Film grain</span>
+              <input id="grain" type="range" min="0" max="100" value="24">
+              <output id="grain-value" for="grain">24%</output>
+            </label>
+            <label class="range-row" for="vignette">
+              <span>Vignette</span>
+              <input id="vignette" type="range" min="0" max="100" value="42">
+              <output id="vignette-value" for="vignette">42%</output>
+            </label>
+            <label class="toggle-row" for="frame-lines">
+              <span><strong>Panel borders</strong><small>Keep the classic ink dividers</small></span>
+              <input id="frame-lines" type="checkbox" checked>
+              <i aria-hidden="true"></i>
+            </label>
+          </div>
+        </section>
+
+        <section class="control-panel" data-panel="type" hidden>
+          <div class="panel-heading">
+            <span class="eyebrow">03 / Title card</span>
+            <h2>Name your city.</h2>
+            <p>Build a bold stacked mark. Keep it short so it hits like a real game cover.</p>
+          </div>
+
+          <div class="field-stack">
+            <label for="title-one">Top line<input id="title-one" type="text" maxlength="12" value="GRAND"></label>
+            <label for="title-two">Middle line<input id="title-two" type="text" maxlength="12" value="THEFT"></label>
+            <label for="title-three">Bottom line<input id="title-three" type="text" maxlength="12" value="AUTO"></label>
+            <label for="strapline">Edition line<input id="strapline" type="text" maxlength="28" value="A VICE CITY STORY"></label>
+          </div>
+
+          <div class="style-controls">
+            <label class="range-row" for="logo-size">
+              <span>Logo size</span>
+              <input id="logo-size" type="range" min="72" max="125" value="100">
+              <output id="logo-size-value" for="logo-size">100%</output>
+            </label>
+            <label class="toggle-row" for="rating-badge">
+              <span><strong>Rating badge</strong><small>Add a fictional cover mark</small></span>
+              <input id="rating-badge" type="checkbox" checked>
+              <i aria-hidden="true"></i>
+            </label>
+          </div>
+        </section>
+
+        <section class="control-panel" data-panel="layout" hidden>
+          <div class="panel-heading">
+            <span class="eyebrow">04 / Composition</span>
+            <h2>Cut the trailer.</h2>
+            <p>Switch the scene structure without losing your photos or framing.</p>
+          </div>
+
+          <div class="layout-list" role="radiogroup" aria-label="Cover layout">
+            <button class="layout-card is-active" type="button" data-layout="classic" role="radio" aria-checked="true">
+              <span class="layout-preview preview-classic" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span><strong>Classic six</strong><small>6 scenes</small></span>
+            </button>
+            <button class="layout-card" type="button" data-layout="hero" role="radio" aria-checked="false">
+              <span class="layout-preview preview-hero" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <span><strong>Hero + filmstrip</strong><small>1 hero · 3 frames</small></span>
+            </button>
+            <button class="layout-card" type="button" data-layout="grid" role="radio" aria-checked="false">
+              <span class="layout-preview preview-grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span><strong>Nine-grid</strong><small>3 × 3 scenes</small></span>
+            </button>
+            <button class="layout-card" type="button" data-layout="duo" role="radio" aria-checked="false">
+              <span class="layout-preview preview-duo" aria-hidden="true"><i></i><i></i></span>
+              <span><strong>Duo split</strong><small>2 lead scenes</small></span>
+            </button>
+          </div>
+
+          <fieldset class="ratio-fieldset">
+            <legend>Post size</legend>
+            <div class="segment-control">
+              <label><input type="radio" name="ratio" value="portrait" checked><span>4:5 Cover<small>1080 × 1350</small></span></label>
+              <label><input type="radio" name="ratio" value="square"><span>1:1 Square<small>1080 × 1080</small></span></label>
+              <label><input type="radio" name="ratio" value="landscape"><span>16:9 Wide<small>1920 × 1080</small></span></label>
+            </div>
+          </fieldset>
+
+          <button class="remix-button" id="remix" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M17 3h4v4M3 17l5-5 4 4 8-9M17 21h4v-4M15 15l5 5M3 7l3-3 3 3"/></svg>
+            Remix the scenes
+          </button>
+        </section>
+      </aside>
+
+      <section class="stage" aria-label="Cover preview">
+        <div class="stage-toolbar">
+          <div class="stage-title"><span>Canvas</span><small id="canvas-size">1080 × 1350 px</small></div>
+          <div class="stage-hint"><span class="hint-key">Drag</span> to reframe · <span class="hint-key">Scroll</span> to zoom</div>
+          <button id="fit-preview" type="button" aria-label="Fit cover in workspace">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+            Fit
+          </button>
+        </div>
+
+        <div class="canvas-stage" id="canvas-stage">
+          <div class="sun-disc" aria-hidden="true"></div>
+          <div class="grid-lines" aria-hidden="true"></div>
+          <div class="canvas-frame" id="canvas-frame">
+            <canvas id="cover" width="1080" height="1350" tabindex="0" aria-label="Editable game cover preview. Click a panel to select it, drag to reposition its photo, or use arrow keys to nudge it."></canvas>
+          </div>
+        </div>
+
+        <div class="stage-status">
+          <span><i class="status-dot" aria-hidden="true"></i> Preview ready</span>
+          <span>Private by default · Your photos never leave this device</span>
+          <span id="zoom-readout">38%</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

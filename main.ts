@@ -1,40 +1,56 @@
-// A working gta6-cover-art-01 entry (Node 22, standard library only): the app is this directory's app/ folder, plain
-// static files a desktop browser loads offline (app/index.html and its ES modules, no library and no network
-// request), and the program hands it in. It copies app/ and screenshots/ from beside this file to /output and writes
-// /output/dossier.json, the summary the judge reads, with the vendored make.fun library. Only the plumbing, not the
-// cover art the bounty asks for: Cover Snap, a plain one-photo square cover with a sunset tint and a bold caption,
-// exported as a 1080 x 1080 PNG. Its two sample photos (app/samples/) were made for make.fun with an image model and
-// are free to use. Build your own GTA-style cover maker in its place, put your 3 or 4 PNG or JPEG screenshots in
-// screenshots/ (the first by name is the cover) and run it.
-//
-// Serve it locally with `node serve.ts`, then open http://localhost:8080.
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { cp, mkdir, stat, writeFile } from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
 
-const here = fileURLToPath(new URL('.', import.meta.url));
-const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const projectDirectory = fileURLToPath(new URL('.', import.meta.url));
+const outputDirectory = resolve(process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
 
-mkdirSync(out, { recursive: true });
-cpSync(join(here, 'app'), join(out, 'app'), { recursive: true });
-mkdirSync(join(out, 'screenshots'), { recursive: true });
-if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
+async function requireDirectory(path) {
+  let details;
+  try {
+    details = await stat(path);
+  } catch {
+    throw new Error(`Required directory is missing: ${path}`);
+  }
+  if (!details.isDirectory()) throw new Error(`Expected a directory: ${path}`);
+}
 
-// The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
-// scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files in app/ or 48 MiB of app
-// files, in all, or a path under app/ over 1000 bytes: app/ counts beside /output's own 1000-entry cap, its
-// screenshots/ and dossier.json).
-writeFileSync(
-  join(out, 'dossier.json'),
-  buildDossier(out, {
+async function assembleEntry() {
+  const sourceApp = join(projectDirectory, 'app');
+  const sourceScreenshots = join(projectDirectory, 'screenshots');
+  await Promise.all([requireDirectory(sourceApp), requireDirectory(sourceScreenshots)]);
+  const page = await stat(join(sourceApp, 'index.html')).catch(() => null);
+  if (!page?.isFile()) throw new Error('The application needs app/index.html before it can be packaged.');
+
+  for (const source of [projectDirectory, sourceApp, sourceScreenshots]) {
+    const inside = relative(source, outputDirectory);
+    if (inside === '' || (source !== projectDirectory && !inside.startsWith('..'))) {
+      throw new Error('Choose an output directory separate from the application and screenshot sources.');
+    }
+  }
+
+  await mkdir(outputDirectory, { recursive: true });
+  console.log(`Preparing VicePrint entry in ${outputDirectory}`);
+  for (const name of ['app', 'screenshots']) {
+    await cp(join(projectDirectory, name), join(outputDirectory, name), { recursive: true, force: true });
+    console.log(`Copied ${name}/`);
+  }
+
+  const dossier = buildDossier(outputDirectory, {
     text_max_bytes: 163840,
     screenshots: { max: 4, max_bytes: 262144 },
     app_max_files: 993,
     app_max_bytes: 50331648,
     app_path_max_bytes: 1000,
-  }),
-);
+  });
+  const dossierPath = join(outputDirectory, 'dossier.json');
+  await writeFile(dossierPath, dossier);
+  console.log(`Wrote dossier.json (${dossier.byteLength} bytes)`);
+  console.log('VicePrint package complete.');
+}
+
+assembleEntry().catch((error) => {
+  console.error(`VicePrint packaging failed: ${error.message}`);
+  process.exitCode = 1;
+});
